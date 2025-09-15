@@ -1,20 +1,9 @@
-import {
-  StatusBar,
-  StyleSheet,
-  useColorScheme,
-  View,
-  Text,
-  Button,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { useState } from 'react';
+import { StatusBar,  StyleSheet,  useColorScheme,  View,  Text,  Button,  Alert,  ActivityIndicator} from 'react-native';
+import { useEffect, useState } from 'react';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {
-  initialize,
-  requestPermission,
-  readRecords,
-} from 'react-native-health-connect';
+import {  initialize,  requestPermission,  readRecords} from 'react-native-health-connect';
+import BackgroundFetch from 'react-native-background-fetch';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type HealthData = {
   calories: number | null;
@@ -24,8 +13,49 @@ type HealthData = {
   source: string | null;
 };
 
+const STORAGE_KEY = 'bg_fetch_times';
+
+const onBackgroundFetchEvent = async (taskId:any) => {
+  console.log('[BackgroundFetch] event received:', taskId);
+
+  try {
+    const currentTime = new Date().toLocaleString();
+
+    const storedTimesJSON = await AsyncStorage.getItem(STORAGE_KEY);
+    let storedTimes = storedTimesJSON ? JSON.parse(storedTimesJSON) : [];
+
+    storedTimes.push(currentTime);
+    console.log('[BackgroundFetch] Lista atualizada:', storedTimes);
+
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(storedTimes));
+    
+
+  } catch (error) {
+    console.error('[BackgroundFetch] Erro ao salvar o horário:', error);
+  }
+
+  BackgroundFetch.finish(taskId);
+};
+
+BackgroundFetch.registerHeadlessTask(onBackgroundFetchEvent);
+
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
+
+   const [_fetchedTimes, setFetchedTimes] = useState([]);
+
+  const loadStoredTimes = async () => {
+    try {
+      const storedTimesJSON = await AsyncStorage.getItem(STORAGE_KEY);
+      if (storedTimesJSON) {
+        console.log('dadosArmazenados',JSON.parse(storedTimesJSON));
+        
+        setFetchedTimes(JSON.parse(storedTimesJSON));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar os dados do AsyncStorage:', error);
+    }
+  };
 
   const [healthData, setHealthData] = useState<HealthData>({
     calories: null,
@@ -36,7 +66,14 @@ function App() {
   });
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (healthData.date !== null) {
+      console.log('healthData', healthData);
+    }
+  }, [healthData]);
+
   const readSampleData = async () => {
+    
     setLoading(true);
     try {
       await initialize();
@@ -86,15 +123,15 @@ function App() {
       const latestHeartRate =
         resultHeartRate.records.length > 0
           ? (resultHeartRate.records[resultHeartRate.records.length - 1] as any)
-              .samples[0]?.beatsPerMinute ?? null
+            .samples[0]?.beatsPerMinute ?? null
           : null;
 
       const record =
         resultCalBurned.records.length > 0
           ? resultCalBurned.records[0]
           : resultSteps.records.length > 0
-          ? resultSteps.records[0]
-          : null;
+            ? resultSteps.records[0]
+            : null;
       const recordDate = record?.startTime
         ? new Date(record.startTime).toLocaleDateString()
         : null;
@@ -121,8 +158,32 @@ function App() {
       setLoading(false);
     }
 
-    console.log('healthData',healthData)
   };
+
+  useEffect(() => {
+    loadStoredTimes();
+    
+    const configureBackgroundFetch = async () => {
+      try {
+        await BackgroundFetch.configure(
+          {
+            minimumFetchInterval: 1,
+            stopOnTerminate: false,
+            startOnBoot: true,
+            enableHeadless: true,
+          },
+          onBackgroundFetchEvent,
+          (taskId) => {
+            console.warn('[BackgroundFetch] failed to start:', taskId);
+          }
+        );
+        console.log('[BackgroundFetch] Configuração bem-sucedida.');
+      } catch (error) {
+        console.error('[BackgroundFetch] Falha na configuração:', error);
+      }
+    };
+    configureBackgroundFetch();
+  }, []);
 
   return (
     <View style={styles.container}>
