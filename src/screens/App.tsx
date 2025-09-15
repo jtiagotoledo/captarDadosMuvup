@@ -120,6 +120,8 @@ function App() {
     } finally {
       setLoading(false);
     }
+
+    console.log('healthData',healthData)
   };
 
   return (
