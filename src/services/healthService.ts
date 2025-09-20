@@ -9,12 +9,18 @@ export interface HealthData {
 
 export async function capturarDados(): Promise<HealthData> {
   const now = new Date();
-  const startTime = new Date(Date.now() - 3600 * 1000).toISOString(); // última hora
-  const endTime = now.toISOString();
+
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date();
 
   // Steps → lista
   const stepsResult = await readRecords('Steps', {
-    timeRangeFilter: { operator: 'between', startTime, endTime },
+    timeRangeFilter: {
+      operator: 'between',
+      startTime: startOfDay.toISOString(),
+      endTime: endOfDay.toISOString(),
+    },
   });
 
   const steps =
@@ -26,7 +32,11 @@ export async function capturarDados(): Promise<HealthData> {
 
   // HeartRate → lista
   const hrResult = await readRecords('HeartRate', {
-    timeRangeFilter: { operator: 'between', startTime, endTime },
+    timeRangeFilter: {
+      operator: 'between',
+      startTime: startOfDay.toISOString(),
+      endTime: endOfDay.toISOString(),
+    },
   });
 
   const heartRates =
@@ -41,7 +51,11 @@ export async function capturarDados(): Promise<HealthData> {
   let totalCalories: number | null = null;
   try {
     const calResult = await readRecords('ActiveCaloriesBurned', {
-      timeRangeFilter: { operator: 'between', startTime, endTime },
+      timeRangeFilter: {
+        operator: 'between',
+        startTime: startOfDay.toISOString(),
+        endTime: endOfDay.toISOString(),
+      },
     });
     totalCalories =
       calResult.records.length > 0
