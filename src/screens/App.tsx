@@ -1,4 +1,4 @@
-import { StatusBar, StyleSheet, useColorScheme, View, Text, Button, ScrollView, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
+import { StatusBar, StyleSheet, useColorScheme, View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, } from 'react-native';
 import { useEffect, useState } from 'react';
 import { initialize, requestPermission } from 'react-native-health-connect';
 import { capturarDados, HealthData } from '../services/healthService';
@@ -7,7 +7,9 @@ function App() {
   const isDarkMode = useColorScheme() === 'dark';
   const [healthData, setHealthData] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
 
+  // Inicializa Health Connect e pede permissões
   useEffect(() => {
     const init = async () => {
       try {
@@ -25,6 +27,7 @@ function App() {
     init();
   }, []);
 
+  // Captura dados do Health Connect
   const handleCapturar = async () => {
     try {
       setLoading(true);
@@ -35,6 +38,35 @@ function App() {
       console.error('[App] Erro ao capturar:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Envia dados para Netlify Function
+  const handleEnviar = async () => {
+    if (!healthData) {
+      Alert.alert('Primeiro capture os dados!');
+      return;
+    }
+
+    try {
+      setSending(true);
+      const response = await fetch(
+        "https://muvup.netlify.app/.netlify/functions/capture",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(healthData),
+        }
+      );
+
+      const result = await response.json();
+      console.log("✅ Resposta da Function:", result);
+      Alert.alert('Dados enviados com sucesso!');
+    } catch (err) {
+      console.error("❌ Erro ao enviar dados:", err);
+      Alert.alert('Erro ao enviar dados');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -52,14 +84,14 @@ function App() {
       <Text style={styles.subtitle}>Captura manual diária</Text>
 
       <TouchableOpacity style={styles.button} onPress={handleCapturar}>
-        <Text style={styles.buttonText}>📊 Capturar dados de saúde</Text>
+        <Text style={styles.buttonText}>Capturar dados de saúde</Text>
       </TouchableOpacity>
 
       {loading && <ActivityIndicator style={styles.loader} size="large" color="#fff" />}
 
       {healthData && (
         <ScrollView style={styles.resultBox}>
-          <Text style={styles.itemTitle}>📅 Data: {healthData.date}</Text>
+          <Text style={styles.itemTitle}>Data: {healthData.date}</Text>
 
           <Text style={styles.sectionTitle}>🔥 Calorias:</Text>
           <Text style={styles.itemText}>{healthData.calories ?? '--'}</Text>
@@ -85,24 +117,90 @@ function App() {
           ) : (
             <Text style={styles.itemText}>--</Text>
           )}
+          <Text style={styles.sectionTitle}></Text>
         </ScrollView>
       )}
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={handleEnviar}
+        disabled={sending}
+      >
+        <Text style={styles.buttonText}>
+          {sending ? 'Enviando...' : 'Enviar dados ao site'}
+        </Text>
+      </TouchableOpacity>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#8F6DA0', padding: 20 },
-  logo: { width: 120, height: 120, alignSelf: 'center', marginBottom: 10 },
-  header: { fontSize: 28, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginBottom: 5 },
-  subtitle: { fontSize: 16, color: '#ccc', textAlign: 'center', marginBottom: 20 },
-  loader: { marginTop: 20 },
-  resultBox: { flex:1, backgroundColor: '#394B61', borderRadius: 10, padding: 15, marginTop: 20 },
-  itemTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#ddd', marginTop: 10, marginBottom: 5 },
-  itemText: { fontSize: 14, color: '#eee', marginBottom: 2 },
-  button: {    backgroundColor: '#394B61',    paddingVertical: 12,    paddingHorizontal: 20,    borderRadius: 8,    alignItems: 'center',    marginTop: 10,  },
-  buttonText: {    color: '#fff',    fontSize: 16,    fontWeight: 'bold',  },
+  container: {
+    flex: 1,
+    backgroundColor: '#8F6DA0',
+    padding: 20,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    alignSelf: 'center',
+    marginBottom: 10,
+  },
+  header: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#ccc',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  loader: {
+    marginTop: 20,
+  },
+  resultBox: {
+    flex: 1,
+    backgroundColor: '#394B61',
+    borderRadius: 10,
+    padding: 15,
+    marginTop: 20,
+  },
+  itemTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ddd',
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  itemText: {
+    fontSize: 14,
+    color: '#eee',
+    marginBottom: 2,
+  },
+  button: {
+    backgroundColor: '#394B61',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
 
 export default App;
