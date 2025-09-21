@@ -1,4 +1,4 @@
-import { StatusBar, StyleSheet, useColorScheme, View, Text, Button, ScrollView, ActivityIndicator } from 'react-native';
+import { StatusBar, StyleSheet, useColorScheme, View, Text, Button, ScrollView, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
 import { useEffect, useState } from 'react';
 import { initialize, requestPermission } from 'react-native-health-connect';
 import { capturarDados, HealthData } from '../services/healthService';
@@ -8,7 +8,6 @@ function App() {
   const [healthData, setHealthData] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Pede permissões na abertura do app
   useEffect(() => {
     const init = async () => {
       try {
@@ -26,13 +25,11 @@ function App() {
     init();
   }, []);
 
-  // Captura os dados ao clicar
   const handleCapturar = async () => {
     try {
       setLoading(true);
       const data = await capturarDados();
-      console.log('dadosCapturados',data);
-      
+      console.log('dadosCapturados', data);
       setHealthData(data);
     } catch (err) {
       console.error('[App] Erro ao capturar:', err);
@@ -44,10 +41,19 @@ function App() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <Text style={styles.header}>Health Connect</Text>
+
+      <Image
+        source={require('../images/logo.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+
+      <Text style={styles.header}>Muvup Connect</Text>
       <Text style={styles.subtitle}>Captura manual diária</Text>
 
-      <Button title="📊 Capturar dados de saúde" onPress={handleCapturar} />
+      <TouchableOpacity style={styles.button} onPress={handleCapturar}>
+        <Text style={styles.buttonText}>📊 Capturar dados de saúde</Text>
+      </TouchableOpacity>
 
       {loading && <ActivityIndicator style={styles.loader} size="large" color="#fff" />}
 
@@ -86,14 +92,17 @@ function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#2E3B4E', padding: 20 },
+  container: { flex: 1, backgroundColor: '#8F6DA0', padding: 20 },
+  logo: { width: 120, height: 120, alignSelf: 'center', marginBottom: 10 },
   header: { fontSize: 28, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginBottom: 5 },
   subtitle: { fontSize: 16, color: '#ccc', textAlign: 'center', marginBottom: 20 },
   loader: { marginTop: 20 },
-  resultBox: { backgroundColor: '#394B61', borderRadius: 10, padding: 15, marginTop: 20 },
+  resultBox: { flex:1, backgroundColor: '#394B61', borderRadius: 10, padding: 15, marginTop: 20 },
   itemTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 10 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#ddd', marginTop: 10, marginBottom: 5 },
   itemText: { fontSize: 14, color: '#eee', marginBottom: 2 },
+  button: {    backgroundColor: '#394B61',    paddingVertical: 12,    paddingHorizontal: 20,    borderRadius: 8,    alignItems: 'center',    marginTop: 10,  },
+  buttonText: {    color: '#fff',    fontSize: 16,    fontWeight: 'bold',  },
 });
 
 export default App;
